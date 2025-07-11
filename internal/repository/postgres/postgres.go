@@ -114,7 +114,7 @@ func (s *pgStorage) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("delete: %w", ErrNoRowsAffected)
+		return fmt.Errorf("delete: %w", repository.ErrNotFound)
 	}
 
 	return nil

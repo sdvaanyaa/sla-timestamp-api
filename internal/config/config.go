@@ -22,7 +22,7 @@ type PostgresConfig struct {
 }
 
 type HTTPConfig struct {
-	Address string `env:"HTTP_ADDRESS" envDefault:":8080"`
+	Address string `env:"HTTP_PORT" envDefault:":8080"`
 }
 
 func (c PostgresConfig) DSN() string {

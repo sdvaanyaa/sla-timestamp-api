@@ -9,6 +9,7 @@ CREATE TABLE timestamps (
     tag VARCHAR(50) NOT NULL,
     stage VARCHAR(50) NOT NULL,
     meta JSONB
+    CONSTRAINT unique_timestamp UNIQUE (external_id, tag, stage)
 );
 -- +goose StatementEnd
 

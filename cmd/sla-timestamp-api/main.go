@@ -39,7 +39,7 @@ func main() {
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	go func() {
-		if err = app.Listen(cfg.HTTP.Address); err != nil {
+		if err = app.Listen(":" + cfg.HTTP.Address); err != nil {
 			log.Error("server failed", slog.Any("error", err))
 			os.Exit(1)
 		}

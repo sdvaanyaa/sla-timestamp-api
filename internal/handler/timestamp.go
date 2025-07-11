@@ -30,19 +30,20 @@ func New(app *fiber.App, svc service.TimestampService) {
 //	@Tags			timestamps
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		entity.Timestamp	true	"Timestamp body"
+//	@Param			body	body		entity.CreateTimestampRequest	true	"Timestamp body"
 //	@Success		201		{object}	map[string]uuid.UUID
 //	@Failure		400		{object}	map[string]string	"Invalid input"
 //	@Failure		500		{object}	map[string]string	"Internal error"
 //	@Router			/timestamps [post]
 func (h *TimestampHandler) Create(c *fiber.Ctx) error {
-	var ts entity.Timestamp
+	var req entity.CreateTimestampRequest
 
-	if err := c.BodyParser(&ts); err != nil {
+	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
 	}
 
-	id, err := h.svc.Create(c.Context(), &ts)
+	ts := req.ToTimestamp()
+	id, err := h.svc.Create(c.Context(), ts)
 	if err != nil {
 		status := fiber.StatusInternalServerError
 		if errors.Is(err, service.ErrInvalidInput) {
@@ -51,7 +52,7 @@ func (h *TimestampHandler) Create(c *fiber.Ctx) error {
 		return c.Status(status).JSON(fiber.Map{"error": err})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id.String()})
 }
 
 // GetByID godoc
@@ -82,7 +83,7 @@ func (h *TimestampHandler) GetByID(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"timestamp": ts})
+	return c.Status(fiber.StatusOK).JSON(ts)
 }
 
 // List godoc
@@ -100,15 +101,23 @@ func (h *TimestampHandler) GetByID(c *fiber.Ctx) error {
 func (h *TimestampHandler) List(c *fiber.Ctx) error {
 	limitStr := c.Query("limit", "10")
 	offsetStr := c.Query("offset", "0")
-	limit, _ := strconv.Atoi(limitStr)
-	offset, _ := strconv.Atoi(offsetStr)
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid limit"})
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid offset"})
+	}
 
 	list, err := h.svc.List(c.Context(), limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err})
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"timestamps": list})
+	return c.Status(fiber.StatusOK).JSON(list)
 }
 
 // Delete godoc

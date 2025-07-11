@@ -3,12 +3,17 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository"
 )
 
-var ErrInvalidInput = errors.New("invalid input")
+var (
+	ErrInvalidInput = errors.New("invalid input")
+
+	validate = validator.New()
+)
 
 type TimestampService interface {
 	Create(ctx context.Context, ts *entity.Timestamp) (uuid.UUID, error)
@@ -28,7 +33,7 @@ func New(storage repository.TimestampStorage) TimestampService {
 }
 
 func (s *timestampService) Create(ctx context.Context, ts *entity.Timestamp) (uuid.UUID, error) {
-	if ts.ExternalID == "" || ts.Tag == "" || ts.Stage == "" {
+	if err := validate.Struct(ts); err != nil {
 		return uuid.Nil, ErrInvalidInput
 	}
 
