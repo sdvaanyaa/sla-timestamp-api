@@ -10,6 +10,8 @@ import (
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/pgdb"
+	"strings"
+	"time"
 )
 
 type pgStorage struct {
@@ -65,15 +67,10 @@ func (s *pgStorage) GetByID(ctx context.Context, id uuid.UUID) (*entity.Timestam
 	return &ts, nil
 }
 
-func (s *pgStorage) List(ctx context.Context, limit, offset int) ([]*entity.Timestamp, error) {
-	query := `
-		SELECT id, external_id, timestamp, tag, stage, meta
-		FROM timestamps
-		ORDER BY timestamp DESC
-		LIMIT $1 OFFSET $2
-	`
+func (s *pgStorage) List(ctx context.Context, limit, offset int, externalID, tag, stage string, timestampFrom, timestampTo *time.Time) ([]*entity.Timestamp, error) {
+	query, args := buildListQuery(externalID, tag, stage, timestampFrom, timestampTo, limit, offset)
 
-	rows, err := s.db.Query(ctx, query, limit, offset)
+	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list: %w", ErrQueryFailed)
 	}
@@ -118,4 +115,47 @@ func (s *pgStorage) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func buildListQuery(externalID, tag, stage string, timestampFrom, timestampTo *time.Time, limit, offset int) (string, []any) {
+	var query strings.Builder
+	query.WriteString("SELECT id, external_id, timestamp, tag, stage, meta FROM timestamps WHERE 1=1")
+
+	var args []any
+	argIndex := 1
+
+	if externalID != "" {
+		query.WriteString(fmt.Sprintf(" AND external_id = $%d", argIndex))
+		args = append(args, externalID)
+		argIndex++
+	}
+
+	if tag != "" {
+		query.WriteString(fmt.Sprintf(" AND tag = $%d", argIndex))
+		args = append(args, tag)
+		argIndex++
+	}
+
+	if stage != "" {
+		query.WriteString(fmt.Sprintf(" AND stage = $%d", argIndex))
+		args = append(args, stage)
+		argIndex++
+	}
+
+	if timestampFrom != nil {
+		query.WriteString(fmt.Sprintf(" AND timestamp >= $%d", argIndex))
+		args = append(args, *timestampFrom)
+		argIndex++
+	}
+
+	if timestampTo != nil {
+		query.WriteString(fmt.Sprintf(" AND timestamp <= $%d", argIndex))
+		args = append(args, *timestampTo)
+		argIndex++
+	}
+
+	query.WriteString(fmt.Sprintf(" ORDER BY timestamp DESC LIMIT $%d OFFSET $%d", argIndex, argIndex+1))
+	args = append(args, limit, offset)
+
+	return query.String(), args
 }

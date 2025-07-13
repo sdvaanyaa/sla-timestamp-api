@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
 	_ "github.com/sdvaanyaa/sla-timestamp-api/docs"
@@ -31,8 +32,9 @@ func main() {
 	}
 	defer client.Close()
 
+	val := validator.New()
 	storage := postgres.New(client)
-	svc := service.New(storage)
+	svc := service.New(storage, val)
 	app := fiber.New()
 	handler.New(app, svc)
 

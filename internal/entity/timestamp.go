@@ -41,6 +41,16 @@ type CreateTimestampRequest struct {
 	Meta       map[string]any `json:"meta,omitempty" validate:"omitempty"`
 }
 
+type ListQueryParams struct {
+	Limit         int    `validate:"gte=1"`
+	Offset        int    `validate:"gte=0"`
+	ExternalID    string `validate:"omitempty"`
+	Tag           string `validate:"omitempty,oneof=incident sla deployment maintenance alert"`
+	Stage         string `validate:"omitempty,oneof=created acknowledged in_progress resolved closed"`
+	TimestampFrom *time.Time
+	TimestampTo   *time.Time
+}
+
 func (r *CreateTimestampRequest) ToTimestamp() *Timestamp {
 	return &Timestamp{
 		ExternalID: r.ExternalID,

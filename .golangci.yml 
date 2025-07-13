@@ -30,4 +30,4 @@ linters:
     gocyclo:
       min-complexity: 10
     gocognit:
-      min-complexity: 15
+      min-complexity: 10
