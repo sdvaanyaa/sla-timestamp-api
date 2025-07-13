@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Postgres PostgresConfig
 	HTTP     HTTPConfig
+	Redis    RedisConfig
 }
 
 type PostgresConfig struct {
@@ -22,7 +23,16 @@ type PostgresConfig struct {
 }
 
 type HTTPConfig struct {
-	Address string `env:"HTTP_PORT" envDefault:":8080"`
+	Address string `env:"HTTP_PORT" envDefault:"8080"`
+}
+
+type RedisConfig struct {
+	Host string `env:"REDIS_HOST" envDefault:"localhost"`
+	Port string `env:"REDIS_PORT" envDefault:"6379"`
+}
+
+func (c RedisConfig) Addr() string {
+	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
 func (c PostgresConfig) DSN() string {

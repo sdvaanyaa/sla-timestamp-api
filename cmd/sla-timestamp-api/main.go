@@ -4,11 +4,13 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/swagger"
+	"github.com/redis/go-redis/v9"
 	_ "github.com/sdvaanyaa/sla-timestamp-api/docs"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/config"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/handler"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository/postgres"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/service"
+	"github.com/sdvaanyaa/sla-timestamp-api/pkg/cache/rdscache"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/pgdb"
 	"log/slog"
 	"os"
@@ -25,16 +27,24 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := pgdb.New(cfg.Postgres, log)
+	postgresClient, err := pgdb.New(cfg.Postgres, log)
 	if err != nil {
 		log.Error("create postgres client failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer postgresClient.Close()
+	storage := postgres.New(postgresClient)
+
+	redisClient := redis.NewClient(&redis.Options{Addr: cfg.Redis.Addr()})
+	cache, err := rdscache.New(redisClient, log)
+	if err != nil {
+		log.Error("create redis cache failed", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	val := validator.New()
-	storage := postgres.New(client)
-	svc := service.New(storage, val)
+	svc := service.New(storage, val, cache)
+
 	app := fiber.New()
 	handler.New(app, svc)
 
