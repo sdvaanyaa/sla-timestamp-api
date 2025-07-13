@@ -62,6 +62,12 @@ goose-add:
 	@goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_DSN)" create $(NAME) sql
 
 goose-up:
+	@echo "Waiting for Postgres to be ready"
+		@for i in {1..30}; do \
+			pg_isready -h $(POSTGRES_HOST) -p $(POSTGRES_PORT) -U $(POSTGRES_USER) && break; \
+			echo "Postgres not ready, retry $$i/30"; \
+			sleep 1; \
+		done
 	@echo "Applying migrations"
 	@goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_DSN)" up
 
