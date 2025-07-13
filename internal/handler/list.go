@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
@@ -20,10 +21,11 @@ import (
 //	@Param			limit			query		int		false	"Limit"		default(10)
 //	@Param			offset			query		int		false	"Offset"	default(0)
 //	@Param			external_id		query		string	false	"External ID"
-//	@Param			tag				query		string	false	"Tag"
-//	@Param			stage			query		string	false	"Stage"
-//	@Param			timestamp_from	query		string	false	"Timestamp from (RFC3339)"
-//	@Param			timestamp_to	query		string	false	"Timestamp to (RFC3339)"
+//	@Param			tag				query		string	false	"Tag"						Enums(incident, sla, deployment, maintenance, alert)
+//	@Param			stage			query		string	false	"Stage"						Enums(created, acknowledged, in_progress, resolved, closed)
+//	@Param			timestamp_from	query		string	false	"Timestamp from (RFC3339)"	example(2025-07-10T00:00:00Z)
+//	@Param			timestamp_to	query		string	false	"Timestamp to (RFC3339)"	example(2025-07-13T00:00:00Z)
+//	@Param			meta_filter		query		string	false	"Meta filter as JSON"		example({"source":"email"})
 //	@Success		200				{array}		entity.Timestamp
 //	@Failure		400				{object}	map[string]string	"Invalid input"
 //	@Failure		500				{object}	map[string]string	"Internal error"
@@ -34,7 +36,18 @@ func (h *TimestampHandler) List(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err})
 	}
 
-	list, err := h.svc.List(c.Context(), params.Limit, params.Offset, params.ExternalID, params.Tag, params.Stage, params.TimestampFrom, params.TimestampTo)
+	list, err := h.svc.List(
+		c.Context(),
+		params.Limit,
+		params.Offset,
+		params.ExternalID,
+		params.Tag,
+		params.Stage,
+		params.TimestampFrom,
+		params.TimestampTo,
+		params.MetaFilter,
+	)
+
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidInput) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err})
@@ -50,17 +63,28 @@ func parseListQueryParams(c *fiber.Ctx) (*entity.ListQueryParams, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	offset, err := parseIntQuery(c, "offset", "0", 0)
 	if err != nil {
 		return nil, err
 	}
+
 	timestampFrom, err := parseTimeQuery(c, "timestamp_from")
 	if err != nil {
 		return nil, err
 	}
+
 	timestampTo, err := parseTimeQuery(c, "timestamp_to")
 	if err != nil {
 		return nil, err
+	}
+
+	metaFilterStr := c.Query("meta_filter")
+	var metaFilter map[string]any
+	if metaFilterStr != "" {
+		if err = json.Unmarshal([]byte(metaFilterStr), &metaFilter); err != nil {
+			return nil, fmt.Errorf("invalid meta_filter")
+		}
 	}
 
 	return &entity.ListQueryParams{
@@ -71,6 +95,7 @@ func parseListQueryParams(c *fiber.Ctx) (*entity.ListQueryParams, error) {
 		Stage:         c.Query("stage"),
 		TimestampFrom: timestampFrom,
 		TimestampTo:   timestampTo,
+		MetaFilter:    metaFilter,
 	}, nil
 }
 

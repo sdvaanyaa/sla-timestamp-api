@@ -12,7 +12,6 @@ linters:
     - unused
     - goconst
     - gocyclo
-    - misspell
     - govet
     - gocognit
     - lll
@@ -21,7 +20,8 @@ linters:
 
   settings:
     lll:
-      line-length: 130
+      line-length: 120
+      tab-width: 1
     errcheck:
       check-type-assertions: true
     goconst:

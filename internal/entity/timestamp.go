@@ -49,6 +49,7 @@ type ListQueryParams struct {
 	Stage         string `validate:"omitempty,oneof=created acknowledged in_progress resolved closed"`
 	TimestampFrom *time.Time
 	TimestampTo   *time.Time
+	MetaFilter    map[string]any `validate:"omitempty"`
 }
 
 func (r *CreateTimestampRequest) ToTimestamp() *Timestamp {
