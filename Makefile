@@ -2,6 +2,7 @@ include .env.example
 export
 
 BINARY_NAME = sla-timestamp-api
+CONSUMER_BINARY_NAME = sla-timestamp-consumer
 BUILD_DIR = build
 MIGRATIONS_DIR = migrations
 DATABASE_DSN = postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=$(POSTGRES_SSLMODE)
@@ -96,3 +97,14 @@ mock:
 	@minimock -i github.com/sdvaanyaa/sla-timestamp-api/internal/repository.TimestampStorage -o internal/repository/mocks/repository_mock.go
 	@mkdir -p pkg/cache/mocks
 	@minimock -i github.com/sdvaanyaa/sla-timestamp-api/pkg/cache.Cache -o pkg/cache/mocks/cache_mock.go
+	@mkdir -p pkg/broker/mocks
+	@minimock -i github.com/sdvaanyaa/sla-timestamp-api/pkg/broker.Broker -o pkg/broker/mocks/broker_mock.go
+
+build-consumer:
+	@echo "Building consumer"
+	@mkdir -p $(BUILD_DIR)
+	@go build -o $(BUILD_DIR)/$(CONSUMER_BINARY_NAME) ./cmd/consumer/main.go
+
+run-consumer: bin-deps up goose-up update linter build-consumer
+	@echo "Starting consumer"
+	@$(BUILD_DIR)/$(CONSUMER_BINARY_NAME)

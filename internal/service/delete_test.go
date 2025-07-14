@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/gojuno/minimock/v3"
 	"github.com/google/uuid"
 	smocks "github.com/sdvaanyaa/sla-timestamp-api/internal/repository/mocks"
-	cmocks "github.com/sdvaanyaa/sla-timestamp-api/pkg/cache/mocks"
+	bmocks "github.com/sdvaanyaa/sla-timestamp-api/pkg/broker/mocks"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -19,7 +19,7 @@ func Test_timestampService_Delete(t *testing.T) {
 	type fields struct {
 		storageMock *smocks.TimestampStorageMock
 		val         *validator.Validate
-		cacheMock   *cmocks.CacheMock
+		brokerMock  *bmocks.BrokerMock
 	}
 	type args struct {
 		id uuid.UUID
@@ -38,9 +38,9 @@ func Test_timestampService_Delete(t *testing.T) {
 			prepare: func(ctx context.Context, a args, f *fields) {
 				f.storageMock.DeleteMock.Expect(ctx, a.id).Return(nil)
 
-				f.cacheMock.DeleteMock.Times(2).Set(func(ctx context.Context, key string) error {
-					return nil
-				})
+				event := map[string]any{"action": "delete", "id": a.id.String()}
+				msg, _ := json.Marshal(event)
+				f.brokerMock.PublishMock.Expect(ctx, msg).Return(nil)
 			},
 			wantErr: assert.NoError,
 		},
@@ -71,12 +71,9 @@ func Test_timestampService_Delete(t *testing.T) {
 			prepare: func(ctx context.Context, a args, f *fields) {
 				f.storageMock.DeleteMock.Expect(ctx, a.id).Return(nil)
 
-				f.cacheMock.DeleteMock.Times(2).Set(func(ctx context.Context, key string) error {
-					if key == fmt.Sprintf(TimestampCachePrefix, a.id.String()) {
-						return errors.New("cache delete error")
-					}
-					return nil
-				})
+				event := map[string]any{"action": "delete", "id": a.id.String()}
+				msg, _ := json.Marshal(event)
+				f.brokerMock.PublishMock.Expect(ctx, msg).Return(errors.New("publish error"))
 			},
 			wantErr: assert.NoError,
 		},
@@ -89,17 +86,17 @@ func Test_timestampService_Delete(t *testing.T) {
 
 			ctrl := minimock.NewController(t)
 			storageMock := smocks.NewTimestampStorageMock(ctrl)
-			cacheMock := cmocks.NewCacheMock(ctrl)
+			brokerMock := bmocks.NewBrokerMock(ctrl)
 
-			s := &timestampService{
+			s := timestampService{
 				storage: storageMock,
 				val:     validator.New(),
-				cache:   cacheMock,
+				broker:  brokerMock,
 			}
 
 			tt.prepare(ctx, tt.args, &fields{
 				storageMock: storageMock,
-				cacheMock:   cacheMock,
+				brokerMock:  brokerMock,
 				val:         validator.New(),
 			})
 

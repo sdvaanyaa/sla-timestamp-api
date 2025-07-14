@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository"
+	"github.com/sdvaanyaa/sla-timestamp-api/pkg/broker"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/cache"
 	"time"
 )
@@ -40,12 +41,19 @@ type timestampService struct {
 	storage repository.TimestampStorage
 	val     *validator.Validate
 	cache   cache.Cache
+	broker  broker.Broker
 }
 
-func New(storage repository.TimestampStorage, val *validator.Validate, cache cache.Cache) TimestampService {
+func New(
+	storage repository.TimestampStorage,
+	val *validator.Validate,
+	cache cache.Cache,
+	broker broker.Broker,
+) TimestampService {
 	return &timestampService{
 		storage: storage,
 		val:     val,
 		cache:   cache,
+		broker:  broker,
 	}
 }

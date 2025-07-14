@@ -2,8 +2,9 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"github.com/google/uuid"
+	"log/slog"
 )
 
 func (s *timestampService) Delete(ctx context.Context, id uuid.UUID) error {
@@ -16,9 +17,14 @@ func (s *timestampService) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	key := fmt.Sprintf(TimestampCachePrefix, id.String())
-	_ = s.cache.Delete(ctx, key)
-	_ = s.cache.Delete(ctx, ListCachePrefix)
+	event := map[string]any{"action": "delete", "id": id.String()}
+	msg, err := json.Marshal(event)
+	if err != nil {
+		slog.Error("marshal event failed", slog.Any("error", err))
+		return nil
+	}
+
+	_ = s.broker.Publish(ctx, msg)
 
 	return nil
 }

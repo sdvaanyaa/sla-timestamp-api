@@ -10,6 +10,7 @@ import (
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/handler"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository/postgres"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/service"
+	"github.com/sdvaanyaa/sla-timestamp-api/pkg/broker/rabbitmq"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/cache/rdscache"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/pgdb"
 	"log/slog"
@@ -19,7 +20,10 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	log := slog.New(slog.NewJSONHandler(
+		os.Stderr,
+		&slog.HandlerOptions{Level: slog.LevelDebug},
+	))
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -42,8 +46,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	broker, err := rabbitmq.New(cfg.RabbitMQ.URL(), cfg.RabbitMQ.Queue, log) // New
+	if err != nil {
+		log.Error("create rabbitmq broker failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+	defer func() {
+		if err = broker.Close(); err != nil {
+			log.Error("close rabbitmq broker failed", slog.Any("error", err))
+		}
+	}()
+
 	val := validator.New()
-	svc := service.New(storage, val, cache)
+	svc := service.New(storage, val, cache, broker)
 
 	app := fiber.New()
 	handler.New(app, svc)

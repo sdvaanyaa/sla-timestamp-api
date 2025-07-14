@@ -11,6 +11,7 @@ type Config struct {
 	Postgres PostgresConfig
 	HTTP     HTTPConfig
 	Redis    RedisConfig
+	RabbitMQ RabbitMQConfig
 }
 
 type PostgresConfig struct {
@@ -20,6 +21,13 @@ type PostgresConfig struct {
 	Password string `env:"POSTGRES_PASSWORD" envDefault:"postgres"`
 	Database string `env:"POSTGRES_DB" envDefault:"sla"`
 	SSLMode  string `env:"POSTGRES_SSLMODE" envDefault:"disable"`
+}
+
+func (c PostgresConfig) DSN() string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		c.Username, c.Password, c.Host, c.Port, c.Database, c.SSLMode,
+	)
 }
 
 type HTTPConfig struct {
@@ -35,11 +43,16 @@ func (c RedisConfig) Addr() string {
 	return fmt.Sprintf("%s:%s", c.Host, c.Port)
 }
 
-func (c PostgresConfig) DSN() string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		c.Username, c.Password, c.Host, c.Port, c.Database, c.SSLMode,
-	)
+type RabbitMQConfig struct {
+	Host     string `env:"RABBITMQ_HOST" envDefault:"localhost"`
+	Port     string `env:"RABBITMQ_PORT" envDefault:"5672"`
+	Username string `env:"RABBITMQ_USER" envDefault:"guest"`
+	Password string `env:"RABBITMQ_PASSWORD" envDefault:"guest"`
+	Queue    string `env:"RABBITMQ_QUEUE" envDefault:"timestamp_events"`
+}
+
+func (c RabbitMQConfig) URL() string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%s/", c.Username, c.Password, c.Host, c.Port)
 }
 
 func LoadConfig() (*Config, error) {

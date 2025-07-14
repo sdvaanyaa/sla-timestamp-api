@@ -2,14 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-playground/validator/v10"
 	"github.com/gojuno/minimock/v3"
 	"github.com/google/uuid"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
 	smocks "github.com/sdvaanyaa/sla-timestamp-api/internal/repository/mocks"
-	cmocks "github.com/sdvaanyaa/sla-timestamp-api/pkg/cache/mocks"
+	bmocks "github.com/sdvaanyaa/sla-timestamp-api/pkg/broker/mocks"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -21,7 +21,7 @@ func Test_timestampService_Create(t *testing.T) {
 	type fields struct {
 		storageMock *smocks.TimestampStorageMock
 		val         *validator.Validate
-		cacheMock   *cmocks.CacheMock
+		brokerMock  *bmocks.BrokerMock
 	}
 	type args struct {
 		ts *entity.Timestamp
@@ -47,9 +47,10 @@ func Test_timestampService_Create(t *testing.T) {
 				id := uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")
 				f.storageMock.CreateMock.Expect(ctx, a.ts).Return(id, nil)
 
-				key := fmt.Sprintf(TimestampCachePrefix, id.String())
-				f.cacheMock.SetMock.Expect(ctx, key, a.ts, CacheTTL).Return(nil)
-				f.cacheMock.DeleteMock.Expect(ctx, ListCachePrefix).Return(nil)
+				a.ts.ID = id
+				event := map[string]any{"action": "create", "data": a.ts}
+				msg, _ := json.Marshal(event)
+				f.brokerMock.PublishMock.Expect(ctx, msg).Return(nil)
 			},
 			want:    uuid.MustParse("123e4567-e89b-12d3-a456-426614174000"),
 			wantErr: assert.NoError,
@@ -86,7 +87,7 @@ func Test_timestampService_Create(t *testing.T) {
 			wantErr: assert.Error,
 		},
 		{
-			name: "Cache Set Error (Ignored)",
+			name: "Publish Error (Ignored)",
 			args: args{
 				ts: &entity.Timestamp{
 					ExternalID: "test",
@@ -97,12 +98,12 @@ func Test_timestampService_Create(t *testing.T) {
 			},
 			prepare: func(ctx context.Context, a args, f *fields) {
 				id := uuid.MustParse("123e4567-e89b-12d3-a456-426614174000")
-
 				f.storageMock.CreateMock.Expect(ctx, a.ts).Return(id, nil)
 
-				key := fmt.Sprintf(TimestampCachePrefix, id.String())
-				f.cacheMock.SetMock.Expect(ctx, key, a.ts, CacheTTL).Return(errors.New("cache set error"))
-				f.cacheMock.DeleteMock.Expect(ctx, ListCachePrefix).Return(nil)
+				a.ts.ID = id
+				event := map[string]any{"action": "create", "data": a.ts}
+				msg, _ := json.Marshal(event)
+				f.brokerMock.PublishMock.Expect(ctx, msg).Return(errors.New("publish error"))
 			},
 			want:    uuid.MustParse("123e4567-e89b-12d3-a456-426614174000"),
 			wantErr: assert.NoError,
@@ -116,18 +117,18 @@ func Test_timestampService_Create(t *testing.T) {
 
 			ctrl := minimock.NewController(t)
 			storageMock := smocks.NewTimestampStorageMock(ctrl)
-			cacheMock := cmocks.NewCacheMock(ctrl)
+			brokerMock := bmocks.NewBrokerMock(ctrl)
 
 			s := &timestampService{
 				storage: storageMock,
 				val:     validator.New(),
-				cache:   cacheMock,
+				broker:  brokerMock,
 			}
 
 			tt.prepare(ctx, tt.args, &fields{
 				storageMock: storageMock,
-				cacheMock:   cacheMock,
 				val:         validator.New(),
+				brokerMock:  brokerMock,
 			})
 
 			got, err := s.Create(ctx, tt.args.ts)

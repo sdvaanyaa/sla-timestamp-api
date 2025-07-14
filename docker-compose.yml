@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:17
@@ -23,6 +21,19 @@ services:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    env_file: .env.example
+    restart: always
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 1s
       timeout: 1s
       retries: 30

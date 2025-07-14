@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
+	"log/slog"
 )
 
 func (s *timestampService) Create(ctx context.Context, ts *entity.Timestamp) (uuid.UUID, error) {
@@ -18,10 +19,14 @@ func (s *timestampService) Create(ctx context.Context, ts *entity.Timestamp) (uu
 	}
 
 	ts.ID = id
-	key := fmt.Sprintf(TimestampCachePrefix, id.String())
-	_ = s.cache.Set(ctx, key, ts, CacheTTL)
 
-	_ = s.cache.Delete(ctx, ListCachePrefix)
+	event := map[string]any{"action": "create", "data": ts}
+	msg, err := json.Marshal(event)
+	if err != nil {
+		slog.Error("marshal event failed", slog.Any("error", err))
+		return id, nil
+	}
+	_ = s.broker.Publish(ctx, msg)
 
 	return id, nil
 }
