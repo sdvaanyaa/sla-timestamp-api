@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/entity"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository"
-	"github.com/sdvaanyaa/sla-timestamp-api/pkg/cache/rdscache"
+	"github.com/sdvaanyaa/sla-timestamp-api/pkg/cache"
 	"time"
 )
 
@@ -39,10 +39,10 @@ type TimestampService interface {
 type timestampService struct {
 	storage repository.TimestampStorage
 	val     *validator.Validate
-	cache   *rdscache.Client
+	cache   cache.Cache
 }
 
-func New(storage repository.TimestampStorage, val *validator.Validate, cache *rdscache.Client) TimestampService {
+func New(storage repository.TimestampStorage, val *validator.Validate, cache cache.Cache) TimestampService {
 	return &timestampService{
 		storage: storage,
 		val:     val,

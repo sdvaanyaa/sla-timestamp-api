@@ -38,6 +38,7 @@ bin-deps:
 	@echo "Installing goose dependencies"
 	@go install github.com/pressly/goose/v3/cmd/goose@latest
 	@go install github.com/swaggo/swag/cmd/swag@latest
+	@go install github.com/gojuno/minimock/v3/cmd/minimock@latest
 
 swagger:
 	@echo "Generating Swagger docs"
@@ -78,3 +79,20 @@ goose-down:
 goose-status:
 	@echo "Checking migration status"
 	@goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_DSN)" status
+
+test:
+	@echo "Running tests"
+	@go test -v ./...
+
+test-coverage:
+	@echo "Running tests with coverage"
+	@go test -v -cover -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+mock:
+	@echo "Generating mocks for interfaces"
+	@mkdir -p internal/repository/mocks
+	@minimock -i github.com/sdvaanyaa/sla-timestamp-api/internal/repository.TimestampStorage -o internal/repository/mocks/repository_mock.go
+	@mkdir -p pkg/cache/mocks
+	@minimock -i github.com/sdvaanyaa/sla-timestamp-api/pkg/cache.Cache -o pkg/cache/mocks/cache_mock.go

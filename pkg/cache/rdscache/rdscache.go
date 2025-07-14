@@ -16,7 +16,7 @@ type Client struct {
 	log    *slog.Logger
 }
 
-func New(client *redis.Client, log *slog.Logger) (*Client, error) {
+func New(client *redis.Client, log *slog.Logger) (cache.Cache, error) {
 	if log == nil {
 		log = slog.Default()
 	}
