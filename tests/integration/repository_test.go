@@ -91,6 +91,26 @@ func (s *TimestampRepoSuite) TestCreate() {
 			},
 			wantErr: assert.Error,
 		},
+		{
+			name: "Duplicate Unique Constraint",
+			ts: &entity.Timestamp{
+				ExternalID: "dup-external",
+				Timestamp:  time.Now().UTC(),
+				Tag:        entity.TagIncident,
+				Stage:      entity.StageCreated,
+			},
+			wantErr: assert.NoError, // first create success
+		},
+		{
+			name: "Duplicate Unique Constraint Second",
+			ts: &entity.Timestamp{
+				ExternalID: "dup-external",
+				Timestamp:  time.Now().UTC().Add(time.Hour),
+				Tag:        entity.TagIncident,
+				Stage:      entity.StageCreated,
+			},
+			wantErr: assert.Error,
+		},
 	}
 
 	for _, tt := range tests {
@@ -236,6 +256,22 @@ func (s *TimestampRepoSuite) TestList() {
 			externalID: "nonexistent",
 			wantLen:    0,
 			wantErr:    assert.NoError,
+		},
+		{
+			name:      "Pagination Limit 1 Offset 0",
+			limit:     1,
+			offset:    0,
+			wantLen:   1,
+			wantFirst: ts2, // ORDER BY timestamp DESC
+			wantErr:   assert.NoError,
+		},
+		{
+			name:      "Pagination Limit 1 Offset 1",
+			limit:     1,
+			offset:    1,
+			wantLen:   1,
+			wantFirst: ts1,
+			wantErr:   assert.NoError,
 		},
 	}
 
