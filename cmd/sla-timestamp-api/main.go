@@ -8,6 +8,7 @@ import (
 	_ "github.com/sdvaanyaa/sla-timestamp-api/docs"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/config"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/handler"
+	"github.com/sdvaanyaa/sla-timestamp-api/internal/middleware"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/repository/postgres"
 	"github.com/sdvaanyaa/sla-timestamp-api/internal/service"
 	"github.com/sdvaanyaa/sla-timestamp-api/pkg/broker/rabbitmq"
@@ -61,6 +62,8 @@ func main() {
 	svc := service.New(storage, val, cache, broker)
 
 	app := fiber.New()
+	app.Use(middleware.Logging(log))
+	app.Use(middleware.RateLimiter())
 	handler.New(app, svc)
 
 	app.Get("/swagger/*", swagger.HandlerDefault)
