@@ -172,6 +172,133 @@ func (s *TimestampRepoSuite) TestGetByID() {
 	}
 }
 
+func (s *TimestampRepoSuite) TestList() {
+	now := time.Now().UTC()
+
+	ts1 := &entity.Timestamp{
+		ExternalID: "ext1",
+		Timestamp:  now.Add(-2 * time.Hour),
+		Tag:        entity.TagIncident,
+		Stage:      entity.StageCreated,
+		Meta:       map[string]any{"source": "email"},
+	}
+	ts2 := &entity.Timestamp{
+		ExternalID: "ext2",
+		Timestamp:  now.Add(-1 * time.Hour),
+		Tag:        entity.TagDeployment,
+		Stage:      entity.StageResolved,
+		Meta:       map[string]any{"source": "api"},
+	}
+	_, err := s.repo.Create(s.ctx, ts1)
+	require.NoError(s.T(), err)
+	_, err = s.repo.Create(s.ctx, ts2)
+	require.NoError(s.T(), err)
+
+	from := now.Add(-3 * time.Hour)
+	to := now
+	metaFilter := map[string]any{"source": "email"}
+
+	tests := []struct {
+		name                       string
+		limit, offset              int
+		externalID, tag, stage     string
+		timestampFrom, timestampTo *time.Time
+		metaFilter                 map[string]any
+		wantLen                    int
+		wantFirst                  *entity.Timestamp
+		wantErr                    assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "Full List",
+			limit:   10,
+			offset:  0,
+			wantLen: 2,
+			wantErr: assert.NoError,
+		},
+		{
+			name:          "Filtered",
+			limit:         10,
+			offset:        0,
+			externalID:    "ext1",
+			tag:           string(entity.TagIncident),
+			stage:         string(entity.StageCreated),
+			timestampFrom: &from,
+			timestampTo:   &to,
+			metaFilter:    metaFilter,
+			wantLen:       1,
+			wantFirst:     ts1,
+			wantErr:       assert.NoError,
+		},
+		{
+			name:       "Empty",
+			limit:      10,
+			offset:     0,
+			externalID: "nonexistent",
+			wantLen:    0,
+			wantErr:    assert.NoError,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.T().Parallel()
+
+			list, errList := s.repo.List(s.ctx, tt.limit, tt.offset, tt.externalID, tt.tag, tt.stage, tt.timestampFrom, tt.timestampTo, tt.metaFilter)
+			tt.wantErr(s.T(), errList)
+			assert.Len(s.T(), list, tt.wantLen)
+
+			if tt.wantLen > 0 && tt.wantFirst != nil {
+				assertApproxEqualTimestamp(s.T(), tt.wantFirst, list[0])
+			}
+		})
+	}
+}
+
+func (s *TimestampRepoSuite) TestDelete() {
+	ts := &entity.Timestamp{
+		ExternalID: "test-external",
+		Timestamp:  time.Now().UTC(),
+		Tag:        entity.TagIncident,
+		Stage:      entity.StageCreated,
+	}
+	id, err := s.repo.Create(s.ctx, ts)
+	require.NoError(s.T(), err)
+
+	_, err = s.repo.GetByID(s.ctx, id)
+	require.NoError(s.T(), err)
+
+	tests := []struct {
+		name    string
+		id      uuid.UUID
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "Success",
+			id:      id,
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "Not Found",
+			id:      uuid.New(),
+			wantErr: assert.Error,
+		},
+	}
+
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.T().Parallel()
+
+			errDel := s.repo.Delete(s.ctx, tt.id)
+			tt.wantErr(s.T(), errDel)
+
+			if tt.name == "Success" {
+				_, err = s.repo.GetByID(s.ctx, tt.id)
+				assert.ErrorIs(s.T(), err, repository.ErrNotFound)
+			}
+		})
+	}
+}
+
 func TestStorageSuite(t *testing.T) {
 	suite.Run(t, new(TimestampRepoSuite))
 }
